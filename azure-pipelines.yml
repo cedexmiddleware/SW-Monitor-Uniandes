@@ -25,5 +25,5 @@ stages:
       inputs:
         dockerRegistryServiceConnection: 'ContainerRegistry_UNIANDES'
         repository: 'sw-monitor-pl'
-        Dockerfile: 'Dockerfile'
+        Dockerfile: 'dockerfile'
         tags: $(tag)
