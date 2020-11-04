@@ -7,31 +7,23 @@ trigger:
 - master
 
 resources:
-- repo: 
-
-pool:
-  vmImage: 'ubuntu-latest'
+- repo: self
 
 variables:
-  phpVersion: 7.4
+  tag: '$(Build.BuildId)'
 
-steps:
-- script: |
-    sudo update-alternatives --set php /usr/bin/php$(phpVersion)
-    sudo update-alternatives --set phar /usr/bin/phar$(phpVersion)
-    sudo update-alternatives --set phpdbg /usr/bin/phpdbg$(phpVersion)
-    sudo update-alternatives --set php-cgi /usr/bin/php-cgi$(phpVersion)
-    sudo update-alternatives --set phar.phar /usr/bin/phar.phar$(phpVersion)
-    php -version
-  displayName: 'Use PHP version $(phpVersion)'
-
-- script: composer install --no-interaction --prefer-dist
-  displayName: 'composer install'
-- script: |
-    sudo npm i -g npm
-    sudo chown -R vsts:vsts ~/.npm
-    sudo chown -R vsts:vsts ~/.config
-    npm install
-    npm run prod
-    node -v
-  displayName: 'Generating build assets JS'
+stages:
+- stage: Build
+  displayName: Build Image
+  jobs: 
+  - job: Build
+    displayName: Build
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - task: ContainerBuild@0
+      inputs:
+        dockerRegistryServiceConnection: 'ContainerRegistry_UNIANDES'
+        repository: 'sw-monitor-pl'
+        Dockerfile: 'Dockerfile'
+        tags: $(tag)
