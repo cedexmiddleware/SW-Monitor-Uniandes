@@ -27,3 +27,4 @@ stages:
         repository: 'sw-monitor-pl'
         Dockerfile: 'dockerfile'
         tags: $(tag)
+    
