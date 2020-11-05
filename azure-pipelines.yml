@@ -147,7 +147,7 @@ stages:
                 volumes:
                 - name: code
                   persistentVolumeClaim:
-                    claimName: nfs-test
+                    claimName: nfs-pre
                 containers:
                 - name: leopre-php
                   image: andescontainers.azurecr.io/sw-wordpress-yard-fpm:1.0.0
@@ -294,10 +294,10 @@ stages:
           spec:
             tls:
              - hosts:
-               - mecanicapre.uniandes.edu.co
+               - leopre.uniandes.edu.co
                secretName: crtuniandes
             rules:
-            - host: mecanicapre.uniandes.edu.co
+            - host: leopre.uniandes.edu.co
               http:
                 paths:
                 - backend:
