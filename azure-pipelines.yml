@@ -149,7 +149,7 @@ stages:
                     claimName: nfs-pre
                 containers:
                 - name: leopre-php
-                  image: andescontainers.azurecr.io/sw-wordpress-yard-fpm:$(tag)
+                  image: andescontainers.azurecr.io/sw-monitor-pl:$(tag)
                   readinessProbe:
                     initialDelaySeconds: 120
                     periodSeconds: 10
