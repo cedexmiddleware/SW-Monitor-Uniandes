@@ -38,8 +38,8 @@ stages:
     - task: Kubernetes@1
       inputs:
         connectionType: 'Kubernetes Service Connection'
-        kubernetesServiceEndpoint: 'Cluster de Pruebas'
-        namespace: 'swpreprod'
+        kubernetesServiceEndpoint: 'Cluster de Produccion NS swpre'
+        namespace: 'swpre'
         command: 'apply'
         useConfigurationFile: true
         configurationType: 'inline'
