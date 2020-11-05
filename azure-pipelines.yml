@@ -23,8 +23,277 @@ stages:
     steps:
     - task: ContainerBuild@0
       inputs:
-        dockerRegistryServiceConnection: 'ContainerRegistry_UNIANDES'
+        dockerRegistryServiceConnection: 'Registry-UNIANDES'
         repository: 'sw-monitor-pl'
         Dockerfile: 'dockerfile'
-        tags: $(tag)
-    
+        tags: '$(tag)'
+    - task: Kubernetes@1
+      inputs:
+        connectionType: 'Kubernetes Service Connection'
+        kubernetesServiceEndpoint: 'Cluster de Pruebas'
+        namespace: 'swpreprod'
+        command: 'apply'
+        useConfigurationFile: true
+        configurationType: 'inline'
+        inline: |
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            namespace: swpre
+            name: config-leopre-nginx
+            labels:
+              tier: backend
+          data:
+            WORDPRESS_TABLE_PREFIX: 'wp_'
+            WORDPRESS_DB_NAME: dbleopre
+            WORDPRESS_SITE_URL: 'https://leopre.uniandes.edu.co'
+            WORDPRESS_DB_HOST: prek8s.mysql.database.azure.com
+            WORDPRESS_DB_USER: usdbleopre@prek8s.mysql.database.azure.com
+            WORDPRESS_DB_PASSWORD: pwd_s_leopre
+            config : |
+              server {
+                index index.php index.html;
+                error_log  /var/log/nginx/error.log;
+                access_log /var/log/nginx/access.log;
+                root /var/www/html;
+                gzip            on;
+                gzip_min_length 1000;
+                gzip_proxied    expired no-cache no-store private auth;
+                gzip_types      text/plain text/css text/js text/xml text/javascript application/javascript application/x-javascript application/json application/xml application/rss+xml image/svg+xml;
+          
+                location / {
+                  try_files $uri $uri/ /index.php?$args ;
+                }
+          
+                location ~ \.php$ {
+                    try_files $uri =404;
+                    fastcgi_split_path_info ^(.+\.php)(/.+)$;
+                    fastcgi_pass leopre-php:9000;
+                    fastcgi_index index.php;
+                    include fastcgi_params;
+                    fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+                    fastcgi_param PATH_INFO $fastcgi_path_info;
+                  }
+                add_header Access-Control-Allow-Origin *;
+                location / {
+                    client_max_body_size 500m;
+                }
+              }    
+          ---
+          ############Services NGinx
+          apiVersion: v1
+          kind: Service
+          metadata:
+            namespace: swpre
+            name: leopre-nginx
+            labels:
+              tier: backend
+          spec:
+            selector:
+              app: leopre-nginx
+              tier: backend
+            ports:
+            - protocol: TCP
+              port: 80
+          ---
+          ############services php
+          apiVersion: v1
+          kind: Service
+          metadata:
+            namespace: swpre
+            name: leopre-php
+            labels:
+              tier: backend
+          spec:
+            selector:
+              app: leopre-php
+              tier: backend
+            ports:
+            - protocol: TCP
+              port: 9000
+          ---
+          ################# deployment php
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            namespace: swpre
+            name: leopre-php
+            labels:
+              tier: backend
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: leopre-php
+                tier: backend
+            template:
+              metadata:
+                labels:
+                  app: leopre-php
+                  tier: backend
+              spec:
+                nodeSelector:
+                  agentpool: wpprod
+                imagePullSecrets:
+                - name: myregistrykey
+                volumes:
+                - name: code
+                  persistentVolumeClaim:
+                    claimName: nfs-test
+                containers:
+                - name: leopre-php
+                  image: andescontainers.azurecr.io/sw-wordpress-yard-fpm:1.0.0
+                  readinessProbe:
+                    initialDelaySeconds: 120
+                    periodSeconds: 10
+                    timeoutSeconds: 5
+                    failureThreshold: 6
+                    successThreshold: 1
+                    httpGet: null
+                    tcpSocket:
+                      port: 9000
+                  livenessProbe:
+                    initialDelaySeconds: 120
+                    periodSeconds: 10
+                    timeoutSeconds: 5
+                    failureThreshold: 6
+                    successThreshold: 1
+                    httpGet: null
+                    tcpSocket:
+                      port: 9000
+                  resources:
+                    limits:
+                      cpu: 350m
+                      memory: 512Mi
+                    requests:
+                      cpu: 350m
+                      memory: 512Mi
+                  volumeMounts:
+                  - name: code
+                    mountPath: /var/www/html
+                    subPath: leopre.uniandes.edu.co
+                  env:
+                  - name: WORDPRESS_TABLE_PREFIX
+                    valueFrom:
+                        configMapKeyRef:
+                            name: config-leopre-nginx
+                            key: WORDPRESS_TABLE_PREFIX
+                  - name: WORDPRESS_DB_NAME
+                    valueFrom:
+                        configMapKeyRef:
+                            name: config-leopre-nginx
+                            key: WORDPRESS_DB_NAME
+                  - name: WORDPRESS_SITE_URL
+                    valueFrom:
+                        configMapKeyRef:
+                            name: config-leopre-nginx
+                            key: WORDPRESS_SITE_URL
+                  - name: WORDPRESS_DB_HOST
+                    valueFrom:
+                        configMapKeyRef:
+                            name: config-leopre-nginx
+                            key: WORDPRESS_DB_HOST
+                  - name: WORDPRESS_DB_USER
+                    valueFrom:
+                        configMapKeyRef:
+                            name: config-leopre-nginx
+                            key: WORDPRESS_DB_USER
+                  - name: WORDPRESS_DB_PASSWORD
+                    valueFrom:
+                        configMapKeyRef:
+                            name: config-leopre-nginx
+                            key: WORDPRESS_DB_PASSWORD
+          ---
+          ################ deployment nginx
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            namespace: swpre
+            name: leopre-nginx
+            labels:
+              tier: backend
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: leopre-nginx
+                tier: backend
+            template:
+              metadata:
+                labels:
+                  app: leopre-nginx
+                  tier: backend
+              spec:
+                nodeSelector:
+                  agentpool: wpprod
+                volumes:
+                - name: code
+                  persistentVolumeClaim:
+                    claimName: nfs-test
+                - name: config
+                  configMap:
+                    name: config-leopre-nginx
+                    items:
+                    - key: config
+                      path: site.conf
+                containers:
+                - name: leopre-nginx
+                  image: nginx:1.19.0-alpine
+                  readinessProbe:
+                    httpGet:
+                      path: /readme.html
+                      port: 80
+                    initialDelaySeconds: 120
+                    periodSeconds: 10
+                    timeoutSeconds: 5
+                    failureThreshold: 6
+                    successThreshold: 1
+                  livenessProbe:
+                    httpGet:
+                      path: /readme.html
+                      port: 80
+                    initialDelaySeconds: 120
+                    periodSeconds: 10
+                    timeoutSeconds: 5
+                    failureThreshold: 6
+                    successThreshold: 1
+                  resources:
+                    limits:
+                      cpu: 100m
+                      memory: 512Mi
+                    requests:
+                      cpu: 100m
+                      memory: 512Mi
+                  ports:
+                  - containerPort: 80
+                  volumeMounts:
+                  - name: code
+                    mountPath: /var/www/html
+                    subPath: pipelinespre.uniandes.edu.co
+                  - name: config
+                    mountPath: /etc/nginx/conf.d
+          ---
+          ##############ingress
+          apiVersion: extensions/v1beta1
+          kind: Ingress
+          metadata:
+            name: leopre-nginx
+            namespace: swpre
+            annotations:
+              kubernetes.io/ingress.class: azure/application-gateway
+              appgw.ingress.kubernetes.io/ssl-redirect: "true"
+              appgw.ingress.kubernetes.io/request-timeout: "240"
+          spec:
+            tls:
+             - hosts:
+               - mecanicapre.uniandes.edu.co
+               secretName: crtuniandes
+            rules:
+            - host: mecanicapre.uniandes.edu.co
+              http:
+                paths:
+                - backend:
+                    serviceName: leopre-nginx
+                    servicePort: 80
+        secretType: 'dockerRegistry'
+        containerRegistryType: 'Azure Container Registry'
