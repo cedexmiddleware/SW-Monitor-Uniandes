@@ -237,7 +237,7 @@ stages:
                 volumes:
                 - name: code
                   persistentVolumeClaim:
-                    claimName: nfs-test
+                    claimName: $(disk)
                 - name: config
                   configMap:
                     name: config-leopre-nginx
