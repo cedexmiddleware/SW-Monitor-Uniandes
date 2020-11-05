@@ -11,7 +11,6 @@ resources:
 
 variables:
   tag: '$(Build.BuildId)'
-
 stages:
 - stage: Build
   displayName: Build Image
@@ -150,7 +149,7 @@ stages:
                     claimName: nfs-pre
                 containers:
                 - name: leopre-php
-                  image: andescontainers.azurecr.io/sw-wordpress-yard-fpm:1.0.0
+                  image: andescontainers.azurecr.io/sw-wordpress-yard-fpm:$(tag)
                   readinessProbe:
                     initialDelaySeconds: 120
                     periodSeconds: 10
