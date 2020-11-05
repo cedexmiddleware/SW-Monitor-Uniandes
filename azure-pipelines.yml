@@ -27,6 +27,14 @@ stages:
         repository: 'sw-monitor-pl'
         Dockerfile: 'dockerfile'
         tags: '$(tag)'
+- stage: Deploy
+  displayName: Deploy Image
+  jobs: 
+  - job: Deploy
+    displayName: Deploy
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
     - task: Kubernetes@1
       inputs:
         connectionType: 'Kubernetes Service Connection'
